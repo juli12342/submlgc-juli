@@ -7,26 +7,26 @@ async function predictClassification(model, image) {
             .decodeJpeg(image)
             .resizeNearestNeighbor([224, 224])
             .expandDims()
-            .toFloat()
+            .toFloat();
 
         const prediction = model.predict(tensor);
         const score = await prediction.data();
         const confidenceScore = Math.max(...score) * 100;
 
-        const label = confidenceScore <= 50 ? 'Non-cancer' : 'Cancer';
-        let suggestion;
+        let result, suggestion;
 
-        if (label === 'Cancer') {
-            suggestion = "Segera periksa ke dokter!";
+        if (confidenceScore > 50) {
+            result = "Cancer";
+            suggestion = "Segera periksa ke dokter! Penting untuk melakukan pemeriksaan lebih lanjut untuk memastikan diagnosis";
+        } else {
+            result = "Non-cancer";
+            suggestion = "Anda sehat! Tetap jaga pola hidup sehat untuk menjaga kesehatan Anda";
         }
 
-        if (label === 'Non-cancer') {
-            suggestion = "Anda sehat!";
-        }
+        return { result, suggestion };
 
-        return { label, suggestion };
     } catch (error) {
-        throw new InputError(`Terjadi kesalahan dalam melakukan prediksi`)
+        throw new InputError(`Terjadi kesalahan input: ${error.message}`);
     }
 }
 

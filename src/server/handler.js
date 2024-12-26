@@ -1,19 +1,19 @@
 const predictClassification = require('../services/inferenceService');
 const crypto = require('crypto');
 const storeData = require('../services/storeData');
-const getAllData = require('../services/getAllData');
+const { Firestore } = require('@google-cloud/firestore');
 
 async function postPredictHandler(request, h) {
     const { image } = request.payload;
     const { model } = request.server.app;
 
-    const { label, suggestion } = await predictClassification(model, image);
+    const { result, suggestion } = await predictClassification(model, image);
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
     const data = {
         "id": id,
-        "result": label,
+        "result": result,
         "suggestion": suggestion,
         "createdAt": createdAt
     }
@@ -23,34 +23,35 @@ async function postPredictHandler(request, h) {
     const response = h.response({
         status: 'success',
         message: 'Model is predicted successfully',
-        data
-    })
+        data: data
+    });
+
     response.code(201);
     return response;
-}
+};
 
-async function postPredictHistoriesHandler(request, h) {
-    const allData = await getAllData();
+async function getHistoriesHandler(request, h) {
+    const db = new Firestore();
+    const predictCollection = db.collection('predictions');
+    const predictSnapshot = await predictCollection.get();
 
-    const formatAllData = [];
-    allData.forEach(doc => {
-        const data = doc.data();
-        formatAllData.push({
+    const data = [];
+
+    predictSnapshot.forEach((doc) => {
+        const history = {
             id: doc.id,
-            history: {
-                result: data.result,
-                createdAt: data.createdAt,
-                suggestion: data.suggestion,
-                id: doc.id
-            }
-        });
+            history: doc.data()
+        };
+        data.push(history);
     });
 
     const response = h.response({
         status: 'success',
-        data: formatAllData
-    })
+        data: data
+    });
     response.code(200);
     return response;
 }
-module.exports = { postPredictHandler, postPredictHistoriesHandler };
+
+
+module.exports = { postPredictHandler, getHistoriesHandler };
